@@ -1,0 +1,71 @@
+version: '3'
+
+#Services
+services:
+
+  nginx:
+    image: nginx:mainline-alpine
+    container_name: nginx
+    depends_on:
+        - adm
+    volumes:
+      - web-root:/var/www/html
+      - ./nginx.conf:/etc/nginx/nginx.conf
+      - ./conf.d:/etc/nginx/conf.d
+      - certbot-etc:/etc/letsencrypt
+      - certbot-var:/var/lib/letsencrypt
+      - dhparam:/etc/ssl/certs
+    ports:
+      - "80:80"
+      - "443:443"
+    networks:
+      - app_network
+
+  certbot:
+    image: certbot/certbot
+    container_name: certbot
+    volumes:
+      - certbot-etc:/etc/letsencrypt
+      - certbot-var:/var/lib/letsencrypt
+      - web-root:/var/www/html
+    depends_on:
+      - nginx
+    command: certonly --webroot --webroot-path=/var/www/html --email amadoelrepalol@gmail.com --agree-tos --no-eff-email --force-renewal -d admbuilt.com
+
+  # Node.js API (adm/server)
+  adm:
+    image: adm
+    container_name: adm
+    env_file:
+      - ./adm/server/.env
+    environment:
+      - ENV="production"
+    build:
+      context: ./adm
+    ports:
+      - "127.0.0.1:5000:5000"
+    networks:
+      - app_network
+    restart: on-failure
+
+#Volumes
+volumes:
+  certbot-etc:
+  certbot-var:
+  web-root:
+    driver: local
+    driver_opts: 
+      type: none
+      device: /home/MUI-Portfolio-Deployment/adm/server/public  # Path to your SPA's static files
+      o: bind
+  dhparam:
+    driver: local
+    driver_opts:
+      type: none
+      device: /home/MUI-Portfolio-Deployment/dhparam/
+      o: bind
+
+#Networks
+networks:
+  app_network:
+    driver: bridge
